@@ -1,105 +1,110 @@
 # Guitar Learning Backend (Go)
 
-Port của project backend gốc (Spring Boot) sang **Golang** để giảm chi phí vận hành.
-Tất cả endpoint API được giữ nguyên như project gốc.
+Backend for the Guitar Learning platform, rewritten from Spring Boot to **Golang** to reduce infrastructure costs.
+All API endpoints are kept identical to the original Spring Boot project.
 
-## Cấu trúc thư mục
+## Directory Structure
 
 ```
-cmd/server/          -> Entry point (main.go)
+cmd/server/          → Entry point (main.go)
 internal/
-  common/            -> Middleware, response, errors, ctx, db helper
-  config/            -> Load biến môi trường
-  auth/              -> Xác thực (register, login, google/firebase, refresh, logout)
-  user/              -> Hồ sơ người dùng
-  content/           -> Nội dung bài học (blocks)
-  music/             -> Hợp âm, strumming patterns
-  learning/          -> Khóa học, module, bài học, phương pháp học
-  progress/          -> Tiến độ học tập
-  song/              -> Thư viện bài hát
-  assessment/        -> Trắc nghiệm, bài thi
-  onboarding/        -> Hướng dẫn bắt đầu
-db/migration/        -> Schema SQL Server (Flyway)
+  common/            → Middleware, response handling, errors, context
+  config/            → Environment variable loading
+  auth/              → Authentication (register, login, google/firebase, refresh, logout)
+  user/              → User profile
+  content/           → Lesson content blocks
+  music/             → Chords, strumming patterns
+  learning/          → Courses, modules, lessons, learning methods
+  progress/          → Learning progress
+  song/              → Song library
+  assessment/        → Quizzes, attempts
+  onboarding/        → Onboarding flow
+db/migration/        → Migration files
 ```
 
-## Yêu cầu
+## Requirements
 
 - Go 1.22+
-- SQL Server (máy local hoặc Azure)
-- Biến môi trường theo file `.env.example`
+- Environment variables according to `.env.example`
 
-## Cài đặt & chạy
+## Installation & Running
 
 ```bash
-# 1. Clone và vào thư mục
+# 1. Enter the project directory
 cd backend-go
 
-# 2. Tạo file .env từ ví dụ (chỉnh DB_URL, JWT_SECRET...)
-copy .env.example .env
+# 2. Copy the example env file and edit it
+cp .env.example .env
 
-# 3. Tải dependencies
+# 3. Download dependencies
 go mod tidy
 
-# 4. Chạy migration V1__init.sql lên SQL Server trước (hoặc dùng Flyway)
-
-# 5. Chạy server
+# 4. Run the server
 go run ./cmd/server
 ```
 
-Server lắng nghe tại `http://localhost:5501` (mặc định).
+The server listens at `http://localhost:5501` by default.
 
-## Danh sách endpoint API (giữ nguyên)
+## API Endpoints (unchanged from original)
 
-| Phương thức | Endpoint | Mô tả |
-|---|---|---|
-| POST | `/api/v1/auth/register` | Đăng ký |
-| POST | `/api/v1/auth/login` | Đăng nhập |
-| POST | `/api/v1/auth/google` | Đăng nhập Firebase/Google |
-| POST | `/api/v1/auth/refresh` | Làm mới access token |
-| POST | `/api/v1/auth/logout` | Đăng xuất |
-| GET | `/api/v1/users/me` | Xem hồ sơ (cần JWT) |
-| PUT | `/api/v1/users/me` | Cập nhật hồ sơ (cần JWT) |
-| GET | `/api/v1/users/me/progress` | Tiến độ học (cần JWT) |
-| POST | `/api/v1/lessons/{id}/complete` | Đánh dấu bài học hoàn thành (cần JWT) |
-| GET | `/api/v1/lessons/{lessonId}/blocks` | Lấy khối nội dung bài học |
-| GET | `/api/v1/chords` | Danh sách hợp âm |
-| GET | `/api/v1/chords/{id}` | Chi tiết hợp âm |
-| GET | `/api/v1/chords/{id}/positions` | Vị trí ngón tay |
-| GET | `/api/v1/strumming-patterns` | Danh sách mẫu đánh |
-| POST | `/api/v1/strumming-patterns` | Tạo mẫu đánh (admin) |
-| GET | `/api/v1/strumming-patterns/{id}` | Chi tiết mẫu đánh |
-| GET | `/api/v1/strumming-patterns/{id}/instructions` | Hướng dẫn từng bước |
-| GET | `/api/v1/courses` | Danh sách khóa học |
-| GET | `/api/v1/courses/{id}` | Chi tiết khóa học |
-| GET | `/api/v1/courses/{id}/modules` | Module của khóa học |
-| GET | `/api/v1/modules/{id}` | Chi tiết module |
-| GET | `/api/v1/modules/{moduleId}/lessons` | Bài học trong module |
-| GET | `/api/v1/lessons/{id}` | Chi tiết bài học |
-| GET | `/api/v1/learning-methods` | Phương pháp học |
-| GET | `/api/v1/learning-methods/{id}` | Chi tiết phương pháp |
-| GET | `/api/v1/songs` | Danh sách bài hát |
-| POST | `/api/v1/songs` | Tạo bài hát (admin) |
-| GET | `/api/v1/songs/{id}` | Chi tiết bài hát |
-| GET | `/api/v1/lessons/{lessonId}/quiz` | Trắc nghiệm bài học |
-| POST | `/api/v1/quizzes/{quizId}/attempts` | Bắt đầu làm bài (cần JWT) |
-| POST | `/api/v1/quiz-attempts/{attemptId}/submit` | Nộp bài (cần JWT) |
-| GET | `/api/v1/quiz-attempts/{attemptId}` | Xem kết quả (cần JWT) |
-| GET | `/api/v1/onboarding/status` | Trạng thái mở đầu (cần JWT) |
-| POST | `/api/v1/onboarding/complete` | Hoàn thành mở đầu (cần JWT) |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/register` | Register |
+| POST | `/api/v1/auth/login` | Login |
+| POST | `/api/v1/auth/google` | Sign in with Firebase/Google |
+| POST | `/api/v1/auth/refresh` | Refresh access token |
+| POST | `/api/v1/auth/logout` | Logout |
+| GET | `/api/v1/users/me` | Get profile (requires JWT) |
+| PUT | `/api/v1/users/me` | Update profile (requires JWT) |
+| GET | `/api/v1/users/me/progress` | Get learning progress (requires JWT) |
+| POST | `/api/v1/lessons/{id}/complete` | Mark lesson complete (requires JWT) |
+| GET | `/api/v1/lessons/{lessonId}/blocks` | Get lesson content blocks |
+| GET | `/api/v1/chords` | List chords |
+| GET | `/api/v1/chords/{id}` | Get chord detail |
+| GET | `/api/v1/chords/{id}/positions` | Get chord finger positions |
+| GET | `/api/v1/strumming-patterns` | List strumming patterns |
+| POST | `/api/v1/strumming-patterns` | Create strumming pattern (admin) |
+| GET | `/api/v1/strumming-patterns/{id}` | Get strumming pattern detail |
+| GET | `/api/v1/strumming-patterns/{id}/instructions` | Get step-by-step instructions |
+| GET | `/api/v1/courses` | List courses |
+| GET | `/api/v1/courses/{id}` | Get course detail |
+| GET | `/api/v1/courses/{id}/modules` | Get course modules |
+| GET | `/api/v1/modules/{id}` | Get module detail |
+| GET | `/api/v1/modules/{moduleId}/lessons` | Get lessons in module |
+| GET | `/api/v1/lessons/{id}` | Get lesson detail |
+| GET | `/api/v1/learning-methods` | List learning methods |
+| GET | `/api/v1/learning-methods/{id}` | Get learning method detail |
+| GET | `/api/v1/songs` | List songs |
+| POST | `/api/v1/songs` | Create song (admin) |
+| GET | `/api/v1/songs/{id}` | Get song detail |
+| GET | `/api/v1/lessons/{lessonId}/quiz` | Get quiz for lesson |
+| POST | `/api/v1/quizzes/{quizId}/attempts` | Start quiz attempt (requires JWT) |
+| POST | `/api/v1/quiz-attempts/{attemptId}/submit` | Submit quiz attempt (requires JWT) |
+| GET | `/api/v1/quiz-attempts/{attemptId}` | Get attempt result (requires JWT) |
+| GET | `/api/v1/onboarding/status` | Get onboarding status (requires JWT) |
+| POST | `/api/v1/onboarding/complete` | Complete onboarding (requires JWT) |
 
 ## CORS
 
-Cấu hình trong `internal/config/config.go` và biến môi trường `CORS_ALLOWED_ORIGINS`. Mặc định cho phép `http://localhost:5500` và `http://127.0.0.1:5500`.
+Configured in `internal/config/config.go` and the `CORS_ALLOWED_ORIGINS` environment variable.
+Default allowed origins: `http://localhost:5500` and `http://127.0.0.1:5500`.
 
 ## Docker
 
 ```bash
 docker build -t hguitar-backend-go .
-docker run -p 5501:5501 --env-file .env hguitar-backend-go
+docker run -p 5501:5501 hguitar-backend-go
 ```
 
-## Lưu ý
+## Deploy on Render
 
-- Mã hóa mật khẩu hiện dùng SHA-256 đơn giản. Trong production hãy thay bằng **bcrypt** hoặc **argon2**.
-- Xác thực Firebase ID token hiện chỉ decode payload (dev/local). Production hãy dùng `firebase-admin-sdk-go` để verify ký thực tế.
-- Các câu lệnh SQL dùng placeholder `@p1, @p2...` tương thích driver `go-mssqldb`.
+1. Push this repository to GitHub.
+2. Connect the repository to Render.
+3. Create a new **Web Service** using Docker.
+4. Set the required environment variables in the Render Dashboard.
+5. Deploy the service.
+
+## Important Notes
+
+- Password hashing currently uses simple SHA-256. For production, replace it with **bcrypt** or **argon2** in `internal/auth/infrastructure/security/password.go`.
+- Firebase ID token verification currently only decodes the payload (dev/local). For production, use `firebase-admin-sdk-go` to verify the signature properly.
