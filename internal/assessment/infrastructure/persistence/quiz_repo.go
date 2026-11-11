@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hguitar/backend-go/internal/assessment/domain"
+	"github.com/hguitar/backend-go/internal/common"
 )
 
 type QuizRepositoryAdapter struct {
@@ -16,7 +17,7 @@ func NewQuizRepositoryAdapter(db *sql.DB) *QuizRepositoryAdapter {
 	return &QuizRepositoryAdapter{db: db}
 }
 
-func (r *QuizRepositoryAdapter) FindByLessonID(lessonID uuid.UUID, lang string) (*domain.Quiz, error) {
+func (r *QuizRepositoryAdapter) FindByLessonID(lessonID uuid.UUID, lang common.Language) (*domain.Quiz, error) {
 	row := r.db.QueryRow("SELECT id, lesson_id, title_en, title_vi FROM quizzes WHERE lesson_id = @p1", lessonID)
 	var id, lessonIDStr, titleEN, titleVI string
 	if err := row.Scan(&id, &lessonIDStr, &titleEN, &titleVI); err != nil {

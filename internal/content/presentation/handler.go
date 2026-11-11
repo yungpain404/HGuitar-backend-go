@@ -41,6 +41,6 @@ func (h *ContentHandler) GetBlocks(w http.ResponseWriter, r *http.Request) {
 
 func (h *ContentHandler) Routes() chi.Router {
 	r := chi.NewRouter()
-	r.Get("/", h.GetBlocks)
+	r.Get("/{lessonId}/blocks", h.GetBlocks)
 	return r
 }

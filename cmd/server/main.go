@@ -14,6 +14,7 @@ import (
 	authPres "github.com/hguitar/backend-go/internal/auth/presentation"
 	"github.com/hguitar/backend-go/internal/common"
 	"github.com/hguitar/backend-go/internal/config"
+	"github.com/hguitar/backend-go/internal/home/presentation"
 	contentApp "github.com/hguitar/backend-go/internal/content/application"
 	contentInfra "github.com/hguitar/backend-go/internal/content/infrastructure/persistence"
 	contentPres "github.com/hguitar/backend-go/internal/content/presentation"
@@ -35,7 +36,12 @@ import (
 	userApp "github.com/hguitar/backend-go/internal/user/application"
 	userInfra "github.com/hguitar/backend-go/internal/user/infrastructure/persistence"
 	userPres "github.com/hguitar/backend-go/internal/user/presentation"
+	assessmentApp "github.com/hguitar/backend-go/internal/assessment/application"
+	assessmentInfra "github.com/hguitar/backend-go/internal/assessment/infrastructure/persistence"
+	assessmentPres "github.com/hguitar/backend-go/internal/assessment/presentation"
 	_ "github.com/denisenkom/go-mssqldb"
+	"github.com/swaggo/http-swagger"
+	_ "github.com/hguitar/backend-go/docs"
 )
 
 type passwordHasherAdapter struct{}
@@ -116,6 +122,12 @@ func main() {
 	onboardingSvc := onboardingApp.NewOnboardingService(onboardingRepo)
 	onboardingHandler := onboardingPres.NewOnboardingHandler(onboardingSvc)
 
+	// ── Assessment (quiz) ──
+	quizRepo := assessmentInfra.NewQuizRepositoryAdapter(db)
+	quizAttemptRepo := assessmentInfra.NewQuizAttemptRepositoryAdapter(db)
+	quizSvc := assessmentApp.NewQuizService(quizRepo, quizAttemptRepo)
+	quizHandler := assessmentPres.NewQuizHandler(quizSvc)
+
 	// ── Router ──
 	r := chi.NewRouter()
 	r.Use(common.Recovery)
@@ -128,6 +140,18 @@ func main() {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+
+	// Trang chủ
+	r.Get("/", presentation.NewHomeHandler().Index)
+
+	// Favicon: trả về 204 No Content để tránh 404 log noise
+	r.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	// Swagger UI: http://localhost:5501/swagger/index.html
+	r.Mount("/swagger", httpSwagger.Handler())
+
 	verifyFunc := func(tokenStr string) (string, string, []string, error) {
 		claims, err := authSecurity.ValidateJWT(cfg.JWTSecret, tokenStr)
 		if err != nil {
@@ -135,9 +159,9 @@ func main() {
 		}
 		return claims.UserID, claims.Email, claims.Roles, nil
 	}
-	r.Use(common.AuthMiddleware(verifyFunc))
 
 	api := chi.NewRouter()
+	api.Use(common.AuthMiddleware(verifyFunc))
 
 	api.Mount("/auth", authHandler.Routes())
 	api.Mount("/users", userHandler.Routes())
@@ -153,6 +177,20 @@ func main() {
 	api.Mount("/", learningHandler.Routes())
 	api.Mount("/songs", songHandler.Routes())
 	api.Mount("/onboarding", onboardingHandler.Routes())
+
+	// Quiz routes (mounted individually to avoid clash with learning handler at "/")
+	api.Route("/lessons/{lessonId}/quiz", func(r chi.Router) {
+		r.Get("/", quizHandler.GetQuizForLesson)
+	})
+	api.Route("/quizzes/{quizId}/attempts", func(r chi.Router) {
+		r.Post("/", quizHandler.StartAttempt)
+	})
+	api.Route("/quiz-attempts/{attemptId}/submit", func(r chi.Router) {
+		r.Post("/", quizHandler.SubmitAttempt)
+	})
+	api.Route("/quiz-attempts/{attemptId}", func(r chi.Router) {
+		r.Get("/", quizHandler.GetAttempt)
+	})
 
 	r.Mount("/api/v1", api)
 
