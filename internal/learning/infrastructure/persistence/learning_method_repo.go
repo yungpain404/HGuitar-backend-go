@@ -17,11 +17,44 @@ func NewLearningMethodRepositoryAdapter(db *sql.DB) *LearningMethodRepositoryAda
 }
 
 func (r *LearningMethodRepositoryAdapter) FindAll(difficulty string, lang common.Language) ([]*domain.LearningMethod, error) {
-	return r.find("SELECT id, name_en, name_vi, description_en, description_vi, difficulty, sort_order, created_at FROM learning_methods WHERE 1=1", difficulty)
+	query := `
+		SELECT
+			CAST(m.id AS NVARCHAR(50)),
+			m.difficulty,
+			m.sort_order,
+			m.created_at,
+			ISNULL(ten.title, ''),
+			ISNULL(ten.description, ''),
+			ISNULL(tvi.title, ''),
+			ISNULL(tvi.description, '')
+		FROM learning.learning_methods m
+		LEFT JOIN learning.learning_method_translations ten ON ten.method_id = m.id AND ten.language = 'EN'
+		LEFT JOIN learning.learning_method_translations tvi ON tvi.method_id = m.id AND tvi.language = 'VI'
+		WHERE m.status = 'PUBLISHED'`
+	var args []any
+	if difficulty != "" {
+		query += " AND m.difficulty = @p1"
+		args = append(args, difficulty)
+	}
+	query += " ORDER BY m.sort_order"
+	return r.find(query, args...)
 }
 
 func (r *LearningMethodRepositoryAdapter) FindByID(id uuid.UUID, lang common.Language) (*domain.LearningMethod, error) {
-	list, err := r.find("SELECT id, name_en, name_vi, description_en, description_vi, difficulty, sort_order, created_at FROM learning_methods WHERE id = @p1", id)
+	list, err := r.find(`
+		SELECT
+			CAST(m.id AS NVARCHAR(50)),
+			m.difficulty,
+			m.sort_order,
+			m.created_at,
+			ISNULL(ten.title, ''),
+			ISNULL(ten.description, ''),
+			ISNULL(tvi.title, ''),
+			ISNULL(tvi.description, '')
+		FROM learning.learning_methods m
+		LEFT JOIN learning.learning_method_translations ten ON ten.method_id = m.id AND ten.language = 'EN'
+		LEFT JOIN learning.learning_method_translations tvi ON tvi.method_id = m.id AND tvi.language = 'VI'
+		WHERE m.id = @p1`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -39,15 +72,24 @@ func (r *LearningMethodRepositoryAdapter) find(query string, args ...any) ([]*do
 	defer rows.Close()
 	var out []*domain.LearningMethod
 	for rows.Next() {
-		var id string
-		var m domain.LearningMethod
+		var id, difficulty string
+		var sortOrder int
 		var createdAt interface{}
-		if err := rows.Scan(&id, &m.NameEN, &m.NameVI, &m.DescriptionEN, &m.DescriptionVI, &m.Difficulty, &m.SortOrder, &createdAt); err != nil {
+		var nameEN, descEN, nameVI, descVI string
+		if err := rows.Scan(&id, &difficulty, &sortOrder, &createdAt,
+			&nameEN, &descEN, &nameVI, &descVI); err != nil {
 			return nil, err
 		}
 		parsedID, _ := uuid.Parse(id)
-		m.ID = parsedID
-		out = append(out, &m)
+		out = append(out, &domain.LearningMethod{
+			ID:            parsedID,
+			NameEN:        nameEN,
+			NameVI:        nameVI,
+			DescriptionEN: descEN,
+			DescriptionVI: descVI,
+			Difficulty:    difficulty,
+			SortOrder:     sortOrder,
+		})
 	}
 	return out, nil
 }

@@ -17,7 +17,7 @@ func NewStrummingRepositoryAdapter(db *sql.DB) *StrummingRepositoryAdapter {
 }
 
 func (r *StrummingRepositoryAdapter) FindAll() ([]*domain.StrummingPattern, error) {
-	rows, err := r.db.Query("SELECT id, name, formula, description, difficulty, guitar_type, bpm_min, bpm_max, is_formula, status, sort_order, created_at FROM strumming_patterns")
+	rows, err := r.db.Query("SELECT CAST(id AS NVARCHAR(50)), name, formula, description, difficulty, guitar_type, bpm_min, bpm_max, is_formula, status, sort_order, created_at FROM music.strumming_patterns ORDER BY sort_order")
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (r *StrummingRepositoryAdapter) FindAll() ([]*domain.StrummingPattern, erro
 }
 
 func (r *StrummingRepositoryAdapter) FindByID(id uuid.UUID) (*domain.StrummingPattern, error) {
-	rows, err := r.db.Query("SELECT id, name, formula, description, difficulty, guitar_type, bpm_min, bpm_max, is_formula, status, sort_order, created_at FROM strumming_patterns WHERE id = @p1", id)
+	rows, err := r.db.Query("SELECT CAST(id AS NVARCHAR(50)), name, formula, description, difficulty, guitar_type, bpm_min, bpm_max, is_formula, status, sort_order, created_at FROM music.strumming_patterns WHERE id = @p1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func (r *StrummingRepositoryAdapter) FindByID(id uuid.UUID) (*domain.StrummingPa
 
 func (r *StrummingRepositoryAdapter) Save(pattern *domain.StrummingPattern) error {
 	_, err := r.db.Exec(`
-		INSERT INTO strumming_patterns (id, name, formula, description, difficulty, guitar_type, bpm_min, bpm_max, is_formula, status, sort_order, created_at)
+		INSERT INTO music.strumming_patterns (id, name, formula, description, difficulty, guitar_type, bpm_min, bpm_max, is_formula, status, sort_order, created_at)
 		VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12)`,
 		pattern.ID, pattern.Name, pattern.Formula, pattern.Description, pattern.Difficulty,
 		pattern.GuitarType, pattern.BPMMin, pattern.BPMMax, pattern.IsFormula, pattern.Status, pattern.SortOrder, pattern.CreatedAt)
@@ -101,7 +101,7 @@ func NewStrummingInstructionRepositoryAdapter(db *sql.DB) *StrummingInstructionR
 }
 
 func (r *StrummingInstructionRepositoryAdapter) FindByPatternID(patternID uuid.UUID) ([]*domain.StrummingInstruction, error) {
-	rows, err := r.db.Query("SELECT id, pattern_id, step_number, instruction_en, instruction_vi FROM strumming_instructions WHERE pattern_id = @p1 ORDER BY step_number", patternID)
+	rows, err := r.db.Query("SELECT CAST(id AS NVARCHAR(50)), CAST(pattern_id AS NVARCHAR(50)), step_number, instruction_en, instruction_vi FROM music.strumming_pattern_instructions WHERE pattern_id = @p1 ORDER BY step_number", patternID)
 	if err != nil {
 		return nil, err
 	}

@@ -18,7 +18,7 @@ func NewQuizRepositoryAdapter(db *sql.DB) *QuizRepositoryAdapter {
 }
 
 func (r *QuizRepositoryAdapter) FindByLessonID(lessonID uuid.UUID, lang common.Language) (*domain.Quiz, error) {
-	row := r.db.QueryRow("SELECT id, lesson_id, title_en, title_vi FROM quizzes WHERE lesson_id = @p1", lessonID)
+	row := r.db.QueryRow("SELECT CAST(id AS NVARCHAR(50)), CAST(lesson_id AS NVARCHAR(50)), title_en, title_vi FROM assessment.quizzes WHERE lesson_id = @p1", lessonID)
 	var id, lessonIDStr, titleEN, titleVI string
 	if err := row.Scan(&id, &lessonIDStr, &titleEN, &titleVI); err != nil {
 		if err == sql.ErrNoRows {
@@ -44,13 +44,13 @@ func NewQuizAttemptRepositoryAdapter(db *sql.DB) *QuizAttemptRepositoryAdapter {
 }
 
 func (r *QuizAttemptRepositoryAdapter) Create(attempt *domain.QuizAttempt) error {
-	_, err := r.db.Exec(`INSERT INTO quiz_attempts (id, quiz_id, user_id, score, status, created_at) VALUES (@p1, @p2, @p3, @p4, @p5, @p6)`,
+	_, err := r.db.Exec(`INSERT INTO assessment.quiz_attempts (id, quiz_id, user_id, score, status, created_at) VALUES (@p1, @p2, @p3, @p4, @p5, @p6)`,
 		attempt.ID, attempt.QuizID, attempt.UserID, attempt.Score, attempt.Status, attempt.CreatedAt)
 	return err
 }
 
 func (r *QuizAttemptRepositoryAdapter) FindByID(id uuid.UUID) (*domain.QuizAttempt, error) {
-	row := r.db.QueryRow("SELECT id, quiz_id, user_id, score, status, created_at FROM quiz_attempts WHERE id = @p1", id)
+	row := r.db.QueryRow("SELECT CAST(id AS NVARCHAR(50)), CAST(quiz_id AS NVARCHAR(50)), CAST(user_id AS NVARCHAR(50)), score, status, created_at FROM assessment.quiz_attempts WHERE id = @p1", id)
 	var idStr, quizIDStr, userIDStr string
 	var score int
 	var status string
@@ -73,7 +73,7 @@ func (r *QuizAttemptRepositoryAdapter) FindByID(id uuid.UUID) (*domain.QuizAttem
 }
 
 func (r *QuizAttemptRepositoryAdapter) Update(attempt *domain.QuizAttempt) error {
-	_, err := r.db.Exec(`UPDATE quiz_attempts SET score = @p1, status = @p2 WHERE id = @p3`, attempt.Score, attempt.Status, attempt.ID)
+	_, err := r.db.Exec(`UPDATE assessment.quiz_attempts SET score = @p1, status = @p2 WHERE id = @p3`, attempt.Score, attempt.Status, attempt.ID)
 	return err
 }
 

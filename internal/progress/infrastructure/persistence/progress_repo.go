@@ -17,12 +17,12 @@ func NewLessonProgressRepositoryAdapter(db *sql.DB) *LessonProgressRepositoryAda
 }
 
 func (r *LessonProgressRepositoryAdapter) FindByUserIDAndLessonID(userID, lessonID uuid.UUID) (*domain.LessonProgress, error) {
-	row := r.db.QueryRow("SELECT id, user_id, lesson_id, status, completed_at, created_at, updated_at FROM lesson_progress WHERE user_id = @p1 AND lesson_id = @p2", userID, lessonID)
+	row := r.db.QueryRow("SELECT CAST(id AS NVARCHAR(50)), CAST(user_id AS NVARCHAR(50)), CAST(lesson_id AS NVARCHAR(50)), status, completed_at, created_at, updated_at FROM progress.user_lesson_progress WHERE user_id = @p1 AND lesson_id = @p2", userID, lessonID)
 	return scanProgress(row)
 }
 
 func (r *LessonProgressRepositoryAdapter) FindByUserID(userID uuid.UUID) ([]*domain.LessonProgress, error) {
-	rows, err := r.db.Query("SELECT id, user_id, lesson_id, status, completed_at, created_at, updated_at FROM lesson_progress WHERE user_id = @p1", userID)
+	rows, err := r.db.Query("SELECT CAST(id AS NVARCHAR(50)), CAST(user_id AS NVARCHAR(50)), CAST(lesson_id AS NVARCHAR(50)), status, completed_at, created_at, updated_at FROM progress.user_lesson_progress WHERE user_id = @p1", userID)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (r *LessonProgressRepositoryAdapter) FindByUserID(userID uuid.UUID) ([]*dom
 
 func (r *LessonProgressRepositoryAdapter) Save(p *domain.LessonProgress) error {
 	_, err := r.db.Exec(`
-		MERGE lesson_progress AS target
+		MERGE progress.user_lesson_progress AS target
 		USING (SELECT @p1 AS id, @p2 AS user_id, @p3 AS lesson_id, @p4 AS status, @p5 AS completed_at, @p6 AS created_at, @p7 AS updated_at) AS source
 		ON target.id = source.id
 		WHEN MATCHED THEN UPDATE SET status = source.status, completed_at = source.completed_at, updated_at = source.updated_at

@@ -17,11 +17,40 @@ func NewLessonRepositoryAdapter(db *sql.DB) *LessonRepositoryAdapter {
 }
 
 func (r *LessonRepositoryAdapter) FindByModuleID(moduleID uuid.UUID, lang common.Language) ([]*domain.Lesson, error) {
-	return r.find("SELECT id, module_id, title_en, title_vi, content_en, content_vi, video_url, sort_order, duration_min, created_at FROM lessons WHERE module_id = @p1 ORDER BY sort_order", moduleID)
+	return r.find(`
+		SELECT
+			CAST(l.id AS NVARCHAR(50)),
+			CAST(l.module_id AS NVARCHAR(50)),
+			l.sort_order,
+			ISNULL(l.duration_minutes, 0),
+			l.created_at,
+			ISNULL(ten.title, ''),
+			ISNULL(ten.description, ''),
+			ISNULL(tvi.title, ''),
+			ISNULL(tvi.description, '')
+		FROM learning.lessons l
+		LEFT JOIN learning.lesson_translations ten ON ten.lesson_id = l.id AND ten.language = 'EN'
+		LEFT JOIN learning.lesson_translations tvi ON tvi.lesson_id = l.id AND tvi.language = 'VI'
+		WHERE l.module_id = @p1
+		ORDER BY l.sort_order`, moduleID)
 }
 
 func (r *LessonRepositoryAdapter) FindByID(id uuid.UUID, lang common.Language) (*domain.Lesson, error) {
-	list, err := r.find("SELECT id, module_id, title_en, title_vi, content_en, content_vi, video_url, sort_order, duration_min, created_at FROM lessons WHERE id = @p1", id)
+	list, err := r.find(`
+		SELECT
+			CAST(l.id AS NVARCHAR(50)),
+			CAST(l.module_id AS NVARCHAR(50)),
+			l.sort_order,
+			ISNULL(l.duration_minutes, 0),
+			l.created_at,
+			ISNULL(ten.title, ''),
+			ISNULL(ten.description, ''),
+			ISNULL(tvi.title, ''),
+			ISNULL(tvi.description, '')
+		FROM learning.lessons l
+		LEFT JOIN learning.lesson_translations ten ON ten.lesson_id = l.id AND ten.language = 'EN'
+		LEFT JOIN learning.lesson_translations tvi ON tvi.lesson_id = l.id AND tvi.language = 'VI'
+		WHERE l.id = @p1`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -44,16 +73,25 @@ func (r *LessonRepositoryAdapter) find(query string, args ...any) ([]*domain.Les
 	var out []*domain.Lesson
 	for rows.Next() {
 		var id, moduleID string
-		var l domain.Lesson
+		var sortOrder, durationMin int
 		var createdAt interface{}
-		if err := rows.Scan(&id, &moduleID, &l.TitleEN, &l.TitleVI, &l.ContentEN, &l.ContentVI, &l.VideoURL, &l.SortOrder, &l.DurationMin, &createdAt); err != nil {
+		var titleEN, descEN, titleVI, descVI string
+		if err := rows.Scan(&id, &moduleID, &sortOrder, &durationMin, &createdAt,
+			&titleEN, &descEN, &titleVI, &descVI); err != nil {
 			return nil, err
 		}
 		parsedID, _ := uuid.Parse(id)
 		parsedModuleID, _ := uuid.Parse(moduleID)
-		l.ID = parsedID
-		l.ModuleID = parsedModuleID
-		out = append(out, &l)
+		out = append(out, &domain.Lesson{
+			ID:          parsedID,
+			ModuleID:    parsedModuleID,
+			TitleEN:     titleEN,
+			TitleVI:     titleVI,
+			ContentEN:   descEN,
+			ContentVI:   descVI,
+			SortOrder:   sortOrder,
+			DurationMin: durationMin,
+		})
 	}
 	return out, nil
 }

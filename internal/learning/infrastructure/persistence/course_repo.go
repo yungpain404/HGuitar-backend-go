@@ -17,42 +17,45 @@ func NewCourseRepositoryAdapter(db *sql.DB) *CourseRepositoryAdapter {
 }
 
 func (r *CourseRepositoryAdapter) FindAll(lang common.Language, guitarType string) ([]*domain.Course, error) {
-	query := "SELECT id, title_en, title_vi, slug, description_en, description_vi, guitar_type, level, sort_order, created_at FROM courses WHERE 1=1"
+	query := `
+		SELECT
+			CAST(c.id AS NVARCHAR(50)),
+			c.guitar_type,
+			c.sort_order,
+			c.created_at,
+			ISNULL(ten.title, ''),
+			ISNULL(ten.description, ''),
+			ISNULL(tvi.title, ''),
+			ISNULL(tvi.description, '')
+		FROM learning.courses c
+		LEFT JOIN learning.course_translations ten ON ten.course_id = c.id AND ten.language = 'EN'
+		LEFT JOIN learning.course_translations tvi ON tvi.course_id = c.id AND tvi.language = 'VI'
+		WHERE c.status = 'PUBLISHED'`
 	var args []any
 	if guitarType != "" {
-		query += " AND guitar_type = @p1"
+		query += " AND c.guitar_type = @p1"
 		args = append(args, guitarType)
 	}
-	// build placeholder indices manually
-	// go-mssqldb uses @p1..@pn; rebuild query
-	return r.findCourses(query, args...)
-}
-
-func (r *CourseRepositoryAdapter) findCourses(query string, args ...any) ([]*domain.Course, error) {
-	// Đơn giản hóa: go-mssqldb đón nhận @p1 theo thứ tự tham số. Ta rebuild placeholders.
-	// Ở đây bỏ qua chi tiết placeholder, truyền args trực tiếp.
-	rows, err := r.db.Query(query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []*domain.Course
-	for rows.Next() {
-		var id string
-		var c domain.Course
-		var createdAt interface{}
-		if err := rows.Scan(&id, &c.TitleEN, &c.TitleVI, &c.Slug, &c.DescriptionEN, &c.DescriptionVI, &c.GuitarType, &c.Level, &c.SortOrder, &createdAt); err != nil {
-			return nil, err
-		}
-		parsedID, _ := uuid.Parse(id)
-		c.ID = parsedID
-		out = append(out, &c)
-	}
-	return out, nil
+	query += " ORDER BY c.sort_order"
+	return r.scanCourses(query, args...)
 }
 
 func (r *CourseRepositoryAdapter) FindByID(id uuid.UUID, lang common.Language) (*domain.Course, error) {
-	list, err := r.findCourses("SELECT id, title_en, title_vi, slug, description_en, description_vi, guitar_type, level, sort_order, created_at FROM courses WHERE id = @p1", id)
+	query := `
+		SELECT
+			CAST(c.id AS NVARCHAR(50)),
+			c.guitar_type,
+			c.sort_order,
+			c.created_at,
+			ISNULL(ten.title, ''),
+			ISNULL(ten.description, ''),
+			ISNULL(tvi.title, ''),
+			ISNULL(tvi.description, '')
+		FROM learning.courses c
+		LEFT JOIN learning.course_translations ten ON ten.course_id = c.id AND ten.language = 'EN'
+		LEFT JOIN learning.course_translations tvi ON tvi.course_id = c.id AND tvi.language = 'VI'
+		WHERE c.id = @p1`
+	list, err := r.scanCourses(query, id)
 	if err != nil {
 		return nil, err
 	}
@@ -60,4 +63,33 @@ func (r *CourseRepositoryAdapter) FindByID(id uuid.UUID, lang common.Language) (
 		return nil, nil
 	}
 	return list[0], nil
+}
+
+func (r *CourseRepositoryAdapter) scanCourses(query string, args ...any) ([]*domain.Course, error) {
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*domain.Course
+	for rows.Next() {
+		var id, guitarType string
+		var sortOrder int
+		var createdAt interface{}
+		var titleEN, descEN, titleVI, descVI string
+		if err := rows.Scan(&id, &guitarType, &sortOrder, &createdAt, &titleEN, &descEN, &titleVI, &descVI); err != nil {
+			return nil, err
+		}
+		parsedID, _ := uuid.Parse(id)
+		out = append(out, &domain.Course{
+			ID:            parsedID,
+			TitleEN:       titleEN,
+			TitleVI:       titleVI,
+			DescriptionEN: descEN,
+			DescriptionVI: descVI,
+			GuitarType:    guitarType,
+			SortOrder:     sortOrder,
+		})
+	}
+	return out, nil
 }

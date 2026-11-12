@@ -16,46 +16,89 @@ func NewSongRepositoryAdapter(db *sql.DB) *SongRepositoryAdapter {
 }
 
 func (r *SongRepositoryAdapter) FindAll(source, difficulty, lang string) ([]*domain.Song, error) {
-	rows, err := r.db.Query("SELECT id, title_en, title_vi, artist, source, difficulty, language, created_at FROM songs WHERE 1=1", source, difficulty)
+	query := `
+		SELECT
+			CAST(s.id AS NVARCHAR(50)),
+			s.source,
+			s.difficulty,
+			s.created_at,
+			ISNULL(ten.title, ''),
+			ISNULL(ten.artist, ''),
+			ISNULL(tvi.title, ''),
+			ISNULL(tvi.artist, '')
+		FROM song.songs s
+		LEFT JOIN song.song_translations ten ON ten.song_id = s.id AND ten.language = 'EN'
+		LEFT JOIN song.song_translations tvi ON tvi.song_id = s.id AND tvi.language = 'VI'
+		WHERE s.status = 'PUBLISHED'`
+	var args []any
+	argIdx := 1
+	if source != "" {
+		query += " AND s.source = @p" + string(rune('0'+argIdx))
+		args = append(args, source)
+		argIdx++
+	}
+	if difficulty != "" {
+		query += " AND s.difficulty = @p" + string(rune('0'+argIdx))
+		args = append(args, difficulty)
+	}
+	query += " ORDER BY s.sort_order"
+	return r.scan(query, args...)
+}
+
+func (r *SongRepositoryAdapter) FindByID(id uuid.UUID, lang string) (*domain.Song, error) {
+	list, err := r.scan(`
+		SELECT
+			CAST(s.id AS NVARCHAR(50)),
+			s.source,
+			s.difficulty,
+			s.created_at,
+			ISNULL(ten.title, ''),
+			ISNULL(ten.artist, ''),
+			ISNULL(tvi.title, ''),
+			ISNULL(tvi.artist, '')
+		FROM song.songs s
+		LEFT JOIN song.song_translations ten ON ten.song_id = s.id AND ten.language = 'EN'
+		LEFT JOIN song.song_translations tvi ON tvi.song_id = s.id AND tvi.language = 'VI'
+		WHERE s.id = @p1`, id)
+	if err != nil {
+		return nil, err
+	}
+	if len(list) == 0 {
+		return nil, nil
+	}
+	return list[0], nil
+}
+
+func (r *SongRepositoryAdapter) Save(song *domain.Song) error {
+	_, err := r.db.Exec(`INSERT INTO song.songs (id, source, difficulty, status, sort_order, created_at, updated_at) VALUES (@p1, @p2, @p3, 'PUBLISHED', 0, GETUTCDATE(), GETUTCDATE())`,
+		song.ID, song.Source, song.Difficulty)
+	return err
+}
+
+func (r *SongRepositoryAdapter) scan(query string, args ...any) ([]*domain.Song, error) {
+	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var out []*domain.Song
 	for rows.Next() {
-		var id string
-		var s domain.Song
+		var id, source, difficulty string
 		var createdAt interface{}
-		if err := rows.Scan(&id, &s.TitleEN, &s.TitleVI, &s.Artist, &s.Source, &s.Difficulty, &s.Language, &createdAt); err != nil {
+		var titleEN, artistEN, titleVI, artistVI string
+		if err := rows.Scan(&id, &source, &difficulty, &createdAt,
+			&titleEN, &artistEN, &titleVI, &artistVI); err != nil {
 			return nil, err
 		}
 		parsedID, _ := uuid.Parse(id)
-		s.ID = parsedID
-		out = append(out, &s)
+		out = append(out, &domain.Song{
+			ID:         parsedID,
+			TitleEN:    titleEN,
+			TitleVI:    titleVI,
+			Artist:     artistEN, // default to EN artist
+			Source:     source,
+			Difficulty: difficulty,
+		})
 	}
 	return out, nil
 }
-
-func (r *SongRepositoryAdapter) FindByID(id uuid.UUID, lang string) (*domain.Song, error) {
-	row := r.db.QueryRow("SELECT id, title_en, title_vi, artist, source, difficulty, language, created_at FROM songs WHERE id = @p1", id)
-	var idStr string
-	var s domain.Song
-	var createdAt interface{}
-	if err := row.Scan(&idStr, &s.TitleEN, &s.TitleVI, &s.Artist, &s.Source, &s.Difficulty, &s.Language, &createdAt); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-		return nil, err
-	}
-	parsedID, _ := uuid.Parse(idStr)
-	s.ID = parsedID
-	return &s, nil
-}
-
-func (r *SongRepositoryAdapter) Save(song *domain.Song) error {
-	_, err := r.db.Exec(`INSERT INTO songs (id, title_en, title_vi, artist, source, difficulty, language, created_at) VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8)`,
-		song.ID, song.TitleEN, song.TitleVI, song.Artist, song.Source, song.Difficulty, song.Language, song.CreatedAt)
-	return err
-}
-
-

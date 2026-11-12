@@ -17,13 +17,13 @@ func NewUserProfileRepositoryAdapter(db *sql.DB) *UserProfileRepositoryAdapter {
 }
 
 func (r *UserProfileRepositoryAdapter) FindByUserID(userID uuid.UUID) (*domain.UserProfile, error) {
-	row := r.db.QueryRow("SELECT id, user_id, display_name, avatar_url, guitar_type, created_at, updated_at FROM user_profiles WHERE user_id = @p1", userID)
+	row := r.db.QueryRow("SELECT CAST(id AS NVARCHAR(50)), CAST(user_id AS NVARCHAR(50)), display_name, avatar_url, guitar_type, created_at, updated_at FROM auth.user_profiles WHERE user_id = @p1", userID)
 	return scanProfile(row)
 }
 
 func (r *UserProfileRepositoryAdapter) Save(profile *domain.UserProfile) error {
 	_, err := r.db.Exec(`
-		MERGE user_profiles AS target
+		MERGE auth.user_profiles AS target
 		USING (SELECT @p1 AS id, @p2 AS user_id, @p3 AS display_name, @p4 AS avatar_url, @p5 AS guitar_type, @p6 AS created_at, @p7 AS updated_at) AS source
 		ON target.user_id = source.user_id
 		WHEN MATCHED THEN UPDATE SET display_name = source.display_name, avatar_url = source.avatar_url, guitar_type = source.guitar_type, updated_at = source.updated_at

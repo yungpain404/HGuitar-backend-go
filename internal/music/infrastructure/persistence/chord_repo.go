@@ -40,7 +40,7 @@ func (r *ChordRepositoryAdapter) FindByID(id uuid.UUID) (*domain.Chord, error) {
 }
 
 func (r *ChordRepositoryAdapter) find(where string, args ...any) ([]*domain.Chord, error) {
-	query := "SELECT id, name, guitar_type, category, description FROM chords " + where
+	query := "SELECT CAST(id AS NVARCHAR(50)), name, guitar_type, category, description FROM music.chords " + where
 	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func (r *ChordRepositoryAdapter) find(where string, args ...any) ([]*domain.Chor
 // loadPositions lấy danh sách vị trí ngón tay của một hợp âm từ bảng chord_positions.
 func (r *ChordRepositoryAdapter) loadPositions(chordID uuid.UUID) ([]domain.ChordPosition, error) {
 	rows, err := r.db.Query(
-		"SELECT id, chord_id, position_number, base_fret, fingers_json FROM chord_positions WHERE chord_id = @p1 ORDER BY position_number",
+		"SELECT CAST(id AS NVARCHAR(50)), CAST(chord_id AS NVARCHAR(50)), position_number, base_fret, fingers_json FROM music.chord_positions WHERE chord_id = @p1 ORDER BY position_number",
 		chordID,
 	)
 	if err != nil {
@@ -94,11 +94,11 @@ func (r *ChordRepositoryAdapter) loadPositions(chordID uuid.UUID) ([]domain.Chor
 		parsedID, _ := uuid.Parse(id.String)
 		parsedChordID, _ := uuid.Parse(chordIDStr.String)
 		out = append(out, domain.ChordPosition{
-			ID:           parsedID,
-			ChordID:      parsedChordID,
+			ID:             parsedID,
+			ChordID:        parsedChordID,
 			PositionNumber: int(positionNumber.Int64),
-			BaseFret:     int(baseFret.Int64),
-			FingersJSON:  fingersJSON.String,
+			BaseFret:       int(baseFret.Int64),
+			FingersJSON:    fingersJSON.String,
 		})
 	}
 	return out, nil

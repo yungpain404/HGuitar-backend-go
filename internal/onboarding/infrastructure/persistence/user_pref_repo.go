@@ -17,7 +17,7 @@ func NewUserPreferenceRepositoryAdapter(db *sql.DB) *UserPreferenceRepositoryAda
 }
 
 func (r *UserPreferenceRepositoryAdapter) FindByUserID(userID uuid.UUID) (*domain.UserPreference, error) {
-	row := r.db.QueryRow("SELECT id, user_id, guitar_type, completed, created_at, updated_at FROM user_preferences WHERE user_id = @p1", userID)
+	row := r.db.QueryRow("SELECT CAST(id AS NVARCHAR(50)), CAST(user_id AS NVARCHAR(50)), guitar_type, completed, created_at, updated_at FROM auth.user_preferences WHERE user_id = @p1", userID)
 	var id, userIDStr, guitarType string
 	var completed bool
 	var createdAt, updatedAt interface{}
@@ -41,7 +41,7 @@ func (r *UserPreferenceRepositoryAdapter) FindByUserID(userID uuid.UUID) (*domai
 
 func (r *UserPreferenceRepositoryAdapter) Save(pref *domain.UserPreference) error {
 	_, err := r.db.Exec(`
-		MERGE user_preferences AS target
+		MERGE auth.user_preferences AS target
 		USING (SELECT @p1 AS id, @p2 AS user_id, @p3 AS guitar_type, @p4 AS completed, @p5 AS created_at, @p6 AS updated_at) AS source
 		ON target.user_id = source.user_id
 		WHEN MATCHED THEN UPDATE SET guitar_type = source.guitar_type, completed = source.completed, updated_at = source.updated_at
